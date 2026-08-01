@@ -30,7 +30,9 @@ error ("Online play needs Firebase configuration...") and everything else
    {
      "rules": {
        "rooms":     { "$code": { ".read": "auth != null", ".write": "auth != null" } },
-       "flagRooms": { "$code": { ".read": "auth != null", ".write": "auth != null" } }
+       "flagRooms": { "$code": { ".read": "auth != null", ".write": "auth != null" } },
+       "users":     { ".read": "auth != null", ".write": "auth != null" },
+       "global":    { ".read": "auth != null", ".write": "auth != null" }
      }
    }
    ```
@@ -58,3 +60,33 @@ Rooms aren't automatically deleted, so the database will accumulate old
 rooms over time. For casual use this is harmless (rooms are tiny), but you
 can periodically clear them from the Firebase console, or add a scheduled
 Cloud Function if you want automatic cleanup.
+
+## Owner mode & Global Chat
+
+Signing in with the password `TOBO` (any username) flags that browser as
+**Owner**, which unlocks two things on the Home screen:
+
+- **🛡 Owner Panel** — a live list of every player who has ever signed in
+  (from the `users/` node in Firebase), with `+`/`−` steppers to give or
+  take away their coins and each of the four hint types.
+- **📢 Global Chat** — every signed-in player sees a read-only feed at
+  `global/messages`; only the Owner gets the compose box to post to it.
+
+Every regular player's coins/hints are mirrored to `users/{username}` in
+Firebase whenever they change (see `syncUserToFirebase()`), and each player
+listens for changes to their own record so an Owner's edit shows up on their
+screen immediately.
+
+To change the password, edit the `OWNER_PASSWORD` constant in `index.html`.
+
+**Security caveat:** this is a convenience gate, not real access control.
+`index.html` is a static file anyone can view-source, so the `TOBO` check —
+and the password itself — are visible to any visitor who looks. The Realtime
+Database rules above also don't (and can't, without a server) distinguish
+"the real Owner" from "any signed-in visitor who read the source and copied
+the request" — they only require anonymous auth, same as every other path.
+That's an inherent limit of a backend-less static site: real enforcement
+would need a server (e.g. a Cloud Function that checks the password and
+mints a custom auth claim, with rules keyed off that claim). Treat this
+feature as a fun convenience for a trusted friend group, not a defense
+against anyone determined to poke at it.
